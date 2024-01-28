@@ -3,6 +3,7 @@ import tools
 import solution
 import time
 import math
+import re
 
 
 class TSP_INSTANCE:
@@ -10,23 +11,22 @@ class TSP_INSTANCE:
         self.instance = open(file_name, "r")
 
         # Чтение шапки файла
-        self.NAME = self.instance.readline().strip().split()[1]  # Имя файла
-        self.FILE_TYPE = self.instance.readline().strip().split()[1]  # Тип файла
-        self.COMMENT = self.instance.readline().strip()  # Комментарий
-        self.COMMENT = self.COMMENT[self.COMMENT.find(":") + 1:].lstrip()
-        self.DIMENSION = int(self.instance.readline().strip().split()[1])  # Размер (количество узлов)
-        self.EDGE_WEIGHT_TYPE = self.instance.readline().strip().split()[1]  # Тип хранения узлов
-        self.instance.readline()
+        self.ATTRIBUTES = {}
+
+        string = self.instance.readline().strip()
+        while not re.match(".*SECTION", string):
+            key, value = string.split(": ")
+            self.ATTRIBUTES[key] = value
+            string = self.instance.readline().strip()
 
         # Чтение информации об узлах
-        if self.FILE_TYPE == "TSP":
+        if self.ATTRIBUTES["TYPE"] == "TSP":
             node_list = self.read_tsp_file()
             self.d = self.create_distance_matrix(node_list)
         else:
             raise AttributeError("Алгоритм не может обработать данный тип файла!")
 
-        # print(*self.d, sep="\n")
-
+        # Закрытие файла
         self.instance.close()
 
     def read_tsp_file(self):
@@ -43,27 +43,24 @@ class TSP_INSTANCE:
         return node_list
 
     def create_distance_matrix(self, nodes: list) -> list:
+        n = int(self.ATTRIBUTES["DIMENSION"])
         # Заполнение нулями матрицы для хранения расстояний
-        distance_matrix = [[0] * self.DIMENSION for _ in range(self.DIMENSION)]
+        distance_matrix = [[0] * n for _ in range(n)]
         # Запись расстояний в матрицу
-        for i in range(self.DIMENSION):
-            for j in range(self.DIMENSION):
+        for i in range(n):
+            for j in range(n):
                 if i == j:
                     continue  # Расстояние от узла до самого себя всегда 0
                 distance_matrix[i][j] = round(distance(nodes[i], nodes[j]))
 
         return distance_matrix
 
-    def solve(self):
-        pass
-
-
     def __str__(self):
-        return (f"Name: {self.NAME}\n"
-                f"File type: {self.FILE_TYPE}\n"
-                f"comment: {self.COMMENT}\n"
-                f"Dimension: {self.DIMENSION}\n"
-                f"Edge weight type: {self.EDGE_WEIGHT_TYPE}")
+        string = ""
+        for key, value in self.ATTRIBUTES.items():
+            string += f"{key}: {value}\n"
+
+        return string
 
 
 def distance(node1, node2):
@@ -75,16 +72,12 @@ def distance(node1, node2):
 
 if __name__ == "__main__":
     problem1 = TSP_INSTANCE("benchmarks/berlin52.tsp")
-    solution1 = solution.Solution(100, 0.1, 30000, problem1.d)
+    solution1 = solution.Solution(100, 0.1, 3000, problem1.d)
     print(solution1.answer)
-    # right answer1 = 7542
-    # best algorithm answer = 7544.365901904087
-    for _ in range(1, 25):
-        time1 = time.time()
-        problem2 = TSP_INSTANCE("benchmarks/a280.tsp")
-        solution2 = solution.Solution(200, 0.04*_, 80000, problem2.d)
-        print(solution2.answer)
-        print(solution2.best)
-        print(time.time() - time1)
-    # right answer = 2579
-    # best algorithm answer = 2649
+    # for _ in range(1, 25):
+    #     time1 = time.time()
+    #     problem2 = TSP_INSTANCE("benchmarks/a280.tsp")
+    #     solution2 = solution.Solution(200, 0.04*_, 80000, problem2.d)
+    #     print(solution2.answer)
+    #     print(solution2.best)
+    #     print(time.time() - time1)
