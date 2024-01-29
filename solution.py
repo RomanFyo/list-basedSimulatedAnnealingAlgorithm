@@ -7,14 +7,13 @@ import tools
 class Solution:
     def __init__(self, temp_len, p0, outer_limit, d):
         # Необходимые переменные
-        self.temp_len = temp_len                  # длина списка температур (длина списка температур)
-        self.p0 = p0                              # изначальная возможность принятия решений
         self.d = d                                # матрица расстояний
         self.outer_limit = outer_limit            # количество внешних циклов
         self.inner_limit = temp_len               # количество внутренних циклов (равно длине списка температур)
         self.x = [x for x in range(len(self.d))]  # генерация случайного решения
         random.shuffle(self.x)
-        self.temperature_list = self.generate_temperature_list()  # получение списка температур
+        self.f_x = tools.f(self.x, self.d)        # значение целевой функции для решения x
+        self.temperature_list = self.generate_temperature_list(temp_len, p0)  # получение списка температур
         self.best = tools.f(self.x, self.d)                       # лучшее из встречавшихся решений
         self.best_by_iterations = {}                              # словарь лучших решений по итерациям
         
@@ -31,29 +30,34 @@ class Solution:
 
         # Генерация соседних решений
         y1 = tools.inverse_op(self.x, i, j)  # соседнее решение, полученное применением inverse оператора
-        y2 = tools.insert_op(self.x, i, j)  # соседнее решение, полученное применением insert оператора
-        y3 = tools.swap_op(self.x, i, j)  # соседнее решение, полученное применением swap оператора
+        y2 = tools.insert_op(self.x, i, j)   # соседнее решение, полученное применением insert оператора
+        y3 = tools.swap_op(self.x, i, j)     # соседнее решение, полученное применением swap оператора
 
-        # Жадный выбор оптимального из 3 соседей
-        return min([y1, y2, y3], key=lambda perm: tools.f(perm, self.d))
+        # Вычисление целевых функций для соседних решений
+        f_y1 = tools.f_inverse(self.x, self.f_x, y1, i, j, self.d)
+        f_y2 = tools.f_insert(self.x, self.f_x, y2, i, j, self.d)
+        f_y3 = tools.f_swap(self.x, self.f_x, y3, i, j, self.d)
 
-    def generate_temperature_list(self):
+        # Жадный выбор оптимального из 3 соседей (возвращается соседнее решение с наименьшей целевой функцией f)
+        # print([(y1, f_y1), (y2, f_y2), (y3, f_y3)])
+        # print(sorted([(y1, f_y1), (y2, f_y2), (y3, f_y3)], key = lambda item: item[1]))
+        return sorted([(y1, f_y1), (y2, f_y2), (y3, f_y3)], key = lambda item: item[1])[0]
+
+    def generate_temperature_list(self, temp_len, p0):
         # Генерация списка температур (в виде двоичной кучи)
         temperature_list = []
         heapq.heapify(temperature_list)
 
         # Заполнение списка температур
-        while len(temperature_list) < self.temp_len:
+        while len(temperature_list) < temp_len:
             # Получение лучшего из 3 случайных соседних решений
-            y = self.get_best_from_random_neighbours()
+            y, f_y = self.get_best_from_random_neighbours()
             # Вычисление общего пройденного расстояния для 2 решений
-            f_y = tools.f(y, self.d)
-            f_x = tools.f(self.x, self.d)
             # вычисление температуры и добавление ее в список температур
-            heapq.heappush(temperature_list, tools.Temperature(-abs(f_y - f_x) / math.log(self.p0)))
+            heapq.heappush(temperature_list, tools.Temperature(-abs(f_y - self.f_x) / math.log(p0)))
             # Если решение лучше текущего, то происходит замена текущего решения на лучшее
-            if f_y < f_x:
-                self.x = y
+            if f_y < self.f_x:
+                self.x, self.f_x = y, f_y
 
         return temperature_list
 
@@ -83,25 +87,21 @@ class Solution:
         # Непосредственно внутренний цикл
         while inner_cntr < self.inner_limit:
             # Получение лучшего из 3 случайных соседних решений
-            y = self.get_best_from_random_neighbours()
-
-            # Вычисление общего пройденного расстояния для 2 решений
-            f_y = tools.f(y, self.d)
-            f_x = tools.f(self.x, self.d)
-
+            y, f_y = self.get_best_from_random_neighbours()
+            print([x.value for x in self.temperature_list])
             # Если соседнее решение лучше текущего или оно принимается с какой-то вероятностью, то x = y
-            if f_y <= f_x:
-                self.x = y
+            if f_y <= self.f_x:
+                self.x, self.f_x = y, f_y
             else:
-                p = math.exp(-(f_y - f_x) / temperature)  # вероятность принятия соседнего решения
+                p = math.exp(-(f_y - self.f_x) / temperature)  # вероятность принятия соседнего решения
                 r = 1
-                while r == 1:  # r == 1 -> math.log(r) == 0 -> error (строка 103)
+                while r == 1:  # r == 1 -> math.log(r) == 0 -> error (ZeroDivisionError)
                     r = random.random()
                 # Симуляция принятия соседнего решения
                 if r < p:
-                    self.best = min(f_y, f_x, self.best)
-                    self.x = y
-                    total_t -= (f_y - f_x) / math.log(r)
+                    self.best = min(f_y, self.f_x, self.best)
+                    self.x, self.f_x = y, f_y
+                    total_t -= (f_y - self.f_x) / math.log(r)
                     amount_t += 1
 
             inner_cntr += 1
