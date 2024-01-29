@@ -39,8 +39,6 @@ class Solution:
         f_y3 = tools.f_swap(self.x, self.f_x, y3, i, j, self.d)
 
         # Жадный выбор оптимального из 3 соседей (возвращается соседнее решение с наименьшей целевой функцией f)
-        # print([(y1, f_y1), (y2, f_y2), (y3, f_y3)])
-        # print(sorted([(y1, f_y1), (y2, f_y2), (y3, f_y3)], key = lambda item: item[1]))
         return sorted([(y1, f_y1), (y2, f_y2), (y3, f_y3)], key = lambda item: item[1])[0]
 
     def generate_temperature_list(self, temp_len, p0):
@@ -88,7 +86,6 @@ class Solution:
         while inner_cntr < self.inner_limit:
             # Получение лучшего из 3 случайных соседних решений
             y, f_y = self.get_best_from_random_neighbours()
-            print([x.value for x in self.temperature_list])
             # Если соседнее решение лучше текущего или оно принимается с какой-то вероятностью, то x = y
             if f_y <= self.f_x:
                 self.x, self.f_x = y, f_y
@@ -100,8 +97,8 @@ class Solution:
                 # Симуляция принятия соседнего решения
                 if r < p:
                     self.best = min(f_y, self.f_x, self.best)
-                    self.x, self.f_x = y, f_y
                     total_t -= (f_y - self.f_x) / math.log(r)
+                    self.x, self.f_x = y, f_y
                     amount_t += 1
 
             inner_cntr += 1

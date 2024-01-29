@@ -2,6 +2,7 @@ import pytest
 import functools
 import random
 
+
 @functools.total_ordering
 class Temperature:
     """
@@ -24,6 +25,7 @@ class Temperature:
     def __str__(self):
         return str(self.value)
 
+
 def inverse_op(perm, i, j):
     """Разворачивает обход городов в решении с города i по город j (i < j)
 
@@ -45,10 +47,12 @@ def inverse_op(perm, i, j):
     new_perm[i:j] = new_perm[i:j][::-1]
     return new_perm
 
+
 def test_inverse_op():
-    list = [0, 1, 2, 3, 4, 5, 6]
+    lst = [0, 1, 2, 3, 4, 5, 6]
     i, j = 0, 6
-    assert inverse_op(list, i, j) == [6, 5, 4, 3, 2, 1, 0]
+    assert inverse_op(lst, i, j) == [6, 5, 4, 3, 2, 1, 0]
+
 
 def insert_op(perm, i, j):
     """Перемещает город с позиции j на позицию i, i < j
@@ -72,10 +76,12 @@ def insert_op(perm, i, j):
     new_perm.insert(i, temp)
     return new_perm
 
+
 def test_insert_op():
-    list = [0, 1, 2, 3, 4, 5, 6]
+    lst = [0, 1, 2, 3, 4, 5, 6]
     i, j = 0, 6
-    assert insert_op(list, i, j) == [6, 0, 1, 2, 3, 4, 5]
+    assert insert_op(lst, i, j) == [6, 0, 1, 2, 3, 4, 5]
+
 
 def swap_op(perm, i, j):
     """    Меняет местами города на позиции i и на позиции j
@@ -95,17 +101,19 @@ def swap_op(perm, i, j):
     new_perm[i], new_perm[j] = new_perm[j], new_perm[i]
     return new_perm
 
+
 def test_swap_op():
-    list = [0, 1, 2, 3, 4, 5, 6]
+    lst = [0, 1, 2, 3, 4, 5, 6]
     i, j = 0, 6
-    assert swap_op(list, i, j) == [6, 1, 2, 3, 4, 5, 0]
+    assert swap_op(lst, i, j) == [6, 1, 2, 3, 4, 5, 0]
+
 
 def f(perm, d):
     """Вычисление длины гамильтонового цикла
 
     Args:
         perm (list): Перестановка x
-        d (int): Матрица расстояний
+        d (list): Матрица расстояний
 
     Returns:
         Значение целевой функции f
@@ -116,10 +124,12 @@ def f(perm, d):
 
     return total
 
+
 def test_f():
-    d = [[2,3,4],[100,120,153],[1253,1351,1235]]
-    perm = [0,2,1]
+    d = [[2, 3, 4], [100, 120, 153], [1253, 1351, 1235]]
+    perm = [0, 2, 1]
     assert f(perm, d) == 1455
+
 
 def f_inverse(old_perm, f, new_perm, i, j, d, mod="symmetric"):
     """Вычисление длины гамильтонового цикла для соседнего решения, полученного применением оператора инверсии
@@ -152,6 +162,7 @@ def f_inverse(old_perm, f, new_perm, i, j, d, mod="symmetric"):
 
     return f
 
+
 def test_f_inverse():
     random.seed(5)
 
@@ -174,6 +185,7 @@ def test_f_inverse():
         new_perm = inverse_op(old_perm, i, j)
         assert f_inverse(old_perm, f(old_perm, d_sim), new_perm, i, j, d_sim) == f(new_perm, d_sim)
         assert f_inverse(old_perm, f(old_perm, d_asim), new_perm, i, j, d_asim, mod="asymmetric") == f(new_perm, d_asim)
+
 
 def f_insert(old_perm, f, new_perm, i, j, d):
     """Вычисление длины гамильтонового цикла для соседнего решения, полученного применением оператора вставки
@@ -202,6 +214,8 @@ def f_insert(old_perm, f, new_perm, i, j, d):
         f += d[new_perm[k]][new_perm[(k+1) % len(new_perm)]]
 
     return f
+
+
 def test_f_insert():
     random.seed(4)
 
@@ -217,6 +231,7 @@ def test_f_insert():
     for i, j in ((2, 7), (0, 49), (13, 46)):
         new_perm = insert_op(old_perm, i, j)
         assert f_insert(old_perm, f(old_perm, d), new_perm, i, j, d) == f(new_perm, d)
+
 
 def f_swap(old_perm, f, new_perm, i, j, d):
     """Вычисление длины гамильтонового цикла для соседнего решения, полученного применением оператора замены
@@ -242,6 +257,7 @@ def f_swap(old_perm, f, new_perm, i, j, d):
 
     return f
 
+
 def test_f_swap():
     random.seed(4)
 
@@ -257,6 +273,7 @@ def test_f_swap():
     for i, j in ((2, 7), (0, 49), (13, 46)):
         new_perm = swap_op(old_perm, i, j)
         assert f_swap(old_perm, f(old_perm, d), new_perm, i, j, d) == f(new_perm, d)
+
 
 if __name__ == "__main__":
     pytest.main()
