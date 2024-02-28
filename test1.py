@@ -1,7 +1,8 @@
 import os
+import time
+
 import instance
 import solution
-import time
 
 benchmark_names = os.listdir(os.path.dirname(__file__) + "\\benchmarks")
 print(benchmark_names)

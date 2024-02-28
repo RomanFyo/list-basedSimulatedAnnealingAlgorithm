@@ -1,6 +1,7 @@
-import pytest
 import functools
 import random
+
+import pytest
 
 
 @functools.total_ordering

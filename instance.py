@@ -1,9 +1,10 @@
-import sys
-import tools
-import solution
-import time
 import math
 import re
+import sys
+import time
+
+import solution
+import tools
 
 
 class TSP_INSTANCE:
@@ -15,14 +16,15 @@ class TSP_INSTANCE:
 
         string = self.instance.readline().strip()
         while not re.match(".*SECTION", string):
-            key, value = string.split(": ")
+            key, value = map(lambda s: s.strip(), string.split(": "))
             self.ATTRIBUTES[key] = value
             string = self.instance.readline().strip()
 
+
         # Чтение информации об узлах
         if self.ATTRIBUTES["TYPE"] == "TSP":
-            node_list = self.read_tsp_file()
-            self.d = self.create_distance_matrix(node_list)
+            self.node_list = self.read_tsp_file()
+            self.d = self.create_distance_matrix(self.node_list)
         else:
             raise AttributeError("Алгоритм не может обработать данный тип файла!")
 
@@ -71,13 +73,13 @@ def distance(node1, node2):
 
 
 if __name__ == "__main__":
-    problem1 = TSP_INSTANCE("benchmarks/berlin52.tsp")
-    solution1 = solution.Solution(100, 0.1, 3000, problem1.d)
+    problem1 = TSP_INSTANCE("benchmarks/u724.tsp")
+    solution1 = solution.Solution(1500, 0.1, 20000, problem1.d).run()
     print(solution1.answer)
     for _ in range(1, 25):
         time1 = time.time()
-        problem2 = TSP_INSTANCE("benchmarks/a280.tsp")
-        solution2 = solution.Solution(200, 0.04*_, 80000, problem2.d)
+        problem2 = TSP_INSTANCE("benchmarks/u724.tsp")
+        solution2 = solution.Solution(1500, 0.04*_, 20000, problem2.d).run()
         print(solution2.answer)
         print(solution2.best)
         print(time.time() - time1)

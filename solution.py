@@ -1,25 +1,28 @@
-import math
 import heapq
+import math
 import random
+import time
+
 import tools
 
 
 class Solution:
-    def __init__(self, temp_len, p0, outer_limit, d):
+    def __init__(self, temp_len, p0, outer_limit, d, input_pipe=None):
         # Необходимые переменные
         self.d = d                                # матрица расстояний
         self.outer_limit = outer_limit            # количество внешних циклов
         self.inner_limit = temp_len               # количество внутренних циклов (равно длине списка температур)
+        self.input_pipe = input_pipe              # вход для трубы, связывающей процессы
         self.x = [x for x in range(len(self.d))]  # генерация случайного решения
         random.shuffle(self.x)
         self.f_x = tools.f(self.x, self.d)        # значение целевой функции для решения x
         self.temperature_list = self.generate_temperature_list(temp_len, p0)  # получение списка температур
         self.best = tools.f(self.x, self.d)                       # лучшее из встречавшихся решений
         self.best_by_iterations = {}                              # словарь лучших решений по итерациям
-        
-        # Решение
+
+        self.time = time.time()  # todo: удалить
         self.outer_loop()
-        self.answer = tools.f(self.x, self.d)
+        self.answer = tools.f(self.x, self.d)  # todo: удалить, answer уже вычислен и лежит в f_x
 
     def get_best_from_random_neighbours(self):
         # Генерация 2 случайных индексов
@@ -60,6 +63,7 @@ class Solution:
         return temperature_list
 
     def outer_loop(self):
+        flag = False # todo: delete
         outer_cntr = 0  # счетчик внешних итераций
         while outer_cntr < self.outer_limit:
             # Запись лучшего решения на определенном количестве итераций 
@@ -75,6 +79,10 @@ class Solution:
                 heapq.heappush(self.temperature_list, tools.Temperature(new_temperature))
 
             outer_cntr += 1
+
+            # Если была передана труба, то нужно возвращать данные в другой процесс
+            if self.input_pipe and outer_cntr % 500 == 0:
+                self.input_pipe.send((self.x, outer_cntr, self.best))
 
     def inner_loop(self):
         total_t = 0     # сумма температур, вычисленных для каждого принятого соседнего решения
