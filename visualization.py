@@ -1,19 +1,54 @@
-import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
 import multiprocessing
-import threading
 import os
+import threading
+import tkinter as tk
+from tkinter import messagebox
+from tkinter import ttk
 
 import instance
-import solution
+import solver
 
 
 class Interface(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.__set_title_and_size()
 
-        # Установка названия окна
+        # переменные
+        self.output_pipe, self.input_pipe = None, None  # выход и вход трубы для общения между процессами
+        self.node_list = None  # объявление списка, содержащего координаты вершин для решения
+        self.lines = []  # список, содержащий все линии решения (ребра между узлами)
+        self.canvas_thread = None  # поток для рисования на canvas
+        self.solution_process = None  # процесс решения
+
+        # Виджеты
+        style = ttk.Style()
+        style.theme_use("default")
+        style.configure("TFrame", background="orange")
+        style.configure("TLabel", background="orange")
+        self.menu = ttk.Frame(self)  # Фрейм, на котором расположены все настройки
+        self.files = ttk.Combobox(self.menu)  # выпадающий список с выбором файла для запуска
+        self.temp_len_label = ttk.Label(self.menu, text="Длина списка темеператур:")
+        self.temp_len_entry = ttk.Entry(self.menu)  # поле ввода длины списка температур
+        self.p0_label = ttk.Label(self.menu, text="Изначальная вероятность:")
+        self.p0_entry = ttk.Entry(self.menu)  # поле ввода изначальной вероятности
+        self.number_of_loops_label = ttk.Label(self.menu, text="Количество итераций:")
+        self.number_of_loops_entry = ttk.Entry(self.menu)  # поле ввода количества итераций
+        self.labels_frame = ttk.Frame(self.menu)
+        self.outer_cntr_label = ttk.Label(self.labels_frame, text="Количество итераций:")
+        self.best_solution_label = ttk.Label(self.labels_frame, text="Найденное решение:")
+        self.optimum_label = ttk.Label(self.labels_frame, text="Оптимальное решение:")
+        self.outer_cntr_value = ttk.Label(self.labels_frame, text="0")  # количество пройденных итераций
+        self.best_solution_value = ttk.Label(self.labels_frame, text="None")  # значение лучшего решения
+        self.optimum_value = ttk.Label(self.labels_frame, text="None")  # значение лучшего известного решения
+
+        self.launch = ttk.Button(self.menu, text="Запуск", command=self.__get_process)  # кнопка запуска
+        self.canvas = tk.Canvas(bg="white")  # холст, на котором будет отрисовываться визуализация
+
+        # Расположение виджетов на экране
+        self.__set_widgets()
+
+    def __set_title_and_size(self):
         self.title("Решение задачи коммивояжера")
         # Установка размера окна
         screen_width = self.winfo_screenwidth()
@@ -26,43 +61,24 @@ class Interface(tk.Tk):
             f"{(screen_height - window_height - 100) // 2}"
         )
 
-        # переменные
-        self.output_pipe, self.input_pipe = None, None  # выход и вход трубы для общения между процессами
-        self.process = None  # объявление второго процесса (нужен для запуска решения)
-        self.node_list = None  # объявление списка, содержащего координаты вершин для решения
-        self.lines = []  # список, содержащий все линии решения (ребра между узлами)
-
-        # Виджеты
-        self.menu = tk.Frame(self, bg="orange", bd=2, relief="groove")  # фрейм, на котором распложены все настройки
-        self.files = ttk.Combobox(self.menu)  # выпадающий список с выбором файла для запуска
-        self.amount_of_loops_label = ttk.Label(self.menu, text="Количество итераций:")
-        self.amount_of_loops_entry = ttk.Entry(self.menu)  # поле ввода количества итераций
-        self.labels_frame = tk.Frame(self.menu, bg="orange")
-        self.outer_cntr_label = ttk.Label(self.labels_frame, text="Количество итераций:")
-        self.best_solution_label = ttk.Label(self.labels_frame, text="Найденное решение:")
-        self.optimum_label = ttk.Label(self.labels_frame, text="Оптимальное решение:")
-        self.outer_cntr_value = ttk.Label(self.labels_frame, text="0")  # количество пройденных итераций
-        self.best_solution_value = ttk.Label(self.labels_frame, text="None")  # значение лучшего решения
-        self.optimum_value = ttk.Label(self.labels_frame, text="None")  # значение лучшего известного решения
-
-        self.launch = ttk.Button(self.menu, text="Запуск", command=self.get_process)  # кнопка запуска
-        self.canvas = tk.Canvas(bg="white")  # холст, на котором будет отрисовываться визуализация
-
-        # Расположение виджетов на экране
-        self.set_widgets()
-
-    def set_widgets(self):
+    def __set_widgets(self):
         # Установка значения по умолчанию
-        self.amount_of_loops_entry.insert(tk.END, "20000")
-        options = os.listdir(os.path.dirname(__file__) + r"/benchmarks/")
+        self.temp_len_entry.insert(tk.END, "1500")
+        self.p0_entry.insert(tk.END, "0.1")
+        self.number_of_loops_entry.insert(tk.END, "20000")
+        options = os.listdir(os.path.dirname(__file__) + r"/data/benchmarks/")
         self.files.configure(values=options)
         self.files.insert(tk.END, options[0])
 
         # Упаковка
         self.menu.pack(fill=tk.Y, side=tk.LEFT)
         self.files.pack()
-        self.amount_of_loops_label.pack()
-        self.amount_of_loops_entry.pack()
+        self.temp_len_label.pack()
+        self.temp_len_entry.pack()
+        self.p0_label.pack()
+        self.p0_entry.pack()
+        self.number_of_loops_label.pack()
+        self.number_of_loops_entry.pack()
 
         self.labels_frame.pack()
         self.outer_cntr_label.grid(row=0, column=0, sticky=tk.W)
@@ -76,40 +92,49 @@ class Interface(tk.Tk):
 
         self.canvas.pack(fill=tk.BOTH, side=tk.RIGHT, expand=1)
 
-    def get_process(self):
+    def __get_process(self):
+        # Если уже был запущен процесс решения, то нужно его остановить и запустить новый
+        if self.solution_process and self.solution_process.is_alive():
+            self.solution_process.kill()
+        # Непосредственно запуск процесса решения
         try:
             # Создание трубы для общения между процессом с отрисовкой визуализации и процессом с решением задачи
             self.output_pipe, self.input_pipe = multiprocessing.Pipe()
 
             # Получение информации о текущей задаче
-            problem = instance.TSP_INSTANCE(f"benchmarks/{self.files.get()}")
+            problem = instance.TSP_INSTANCE(f"data/benchmarks/{self.files.get()}")
             self.node_list = problem.node_list  # координаты узлов
-
             # Получение значения оптимума для текущей задачи
-            with open("optimalSolutions.txt", "r") as optimums:
-                for string in optimums.readlines():
-                    cur_name, answer = map(lambda s: s.strip(), string.split(":"))
-                    if f"{cur_name}.tsp" == self.files.get():
-                        self.optimum_value.configure(text=answer)
+            self.__get_optimal_value()
 
             # Запуск потока, который будет обновлять информацию в окне
-            thread = threading.Thread(target=self.draw_current_solution, daemon=True)
-            thread.start()
+            self.canvas_thread = threading.Thread(target=self.__draw_current_solution, daemon=True)
+            self.canvas_thread.start()
 
             # Запуск процесса, который будет заниматься решением задачи
-            solution_process = multiprocessing.Process(target=get_solution,
-                                                       args=(1500,
-                                                             0.1,
-                                                             int(self.amount_of_loops_entry.get()),
-                                                             problem.d,
-                                                             self.input_pipe
-                                                             )
-                                                       )
-            solution_process.start()
+            self.solution_process = multiprocessing.Process(
+                target=Interface.get_solution,
+                args=(
+                    int(self.temp_len_entry.get()),
+                    float(self.p0_entry.get()),
+                    int(self.number_of_loops_entry.get()),
+                    problem.d,
+                    self.input_pipe
+                ),
+                daemon=True
+            )
+            self.solution_process.start()
         except ValueError:
             messagebox.showerror("Ошибка!", "Количество итераций должно быть целым числом!")
 
-    def draw_current_solution(self):
+    def __get_optimal_value(self):
+        with open("data/optimalSolutions.txt", "r") as optimums:
+            for string in optimums.readlines():
+                cur_name, answer = map(lambda s: s.strip(), string.split(":"))
+                if f"{cur_name}.tsp" == self.files.get():
+                    self.optimum_value.configure(text=answer)
+
+    def __draw_current_solution(self):
         self.canvas.delete(tk.ALL)
         # Вычисление коэффициентов - отношений между размером холста и требуемым размером для отображения координат
         # (Будут использоваться для вычисления относительных координат точек на холсте)
@@ -125,37 +150,33 @@ class Interface(tk.Tk):
         coefficient_y = (max_y - min_y) / (canvas_height - 2*indent)
         coefficient = max(coefficient_x, coefficient_y)  # нахождение наибольшего коэффициента
         # Вычисление относительных координат
-        self.node_list = [((node[0]-min_x) / coefficient + indent,
-                           (node[1]-min_y) / coefficient + indent)
-                          for node in self.node_list
-                          ]
+        self.node_list = [
+            [(node[0]-min_x) / coefficient + indent, (node[1]-min_y) / coefficient + indent] for node in self.node_list
+        ]
+
         # Рисование точек на холсте
         for x, y in self.node_list:
             self.canvas.create_oval(x-2, y-2, x+2, y+2, fill="black")
 
+        # Отрисовка линий на холсте
         while True:
-            print("поток работает")
             try:
                 x, outer_cntr, best = self.output_pipe.recv()
                 self.outer_cntr_value.configure(text=str(outer_cntr))
                 self.best_solution_value.configure(text=str(best))
-                print(x)
                 for line in self.lines:
                     self.canvas.delete(line)
                 for ind in range(len(x)):
-                    self.lines.append(self.canvas.create_line(*self.node_list[x[ind]],
-                                                              *self.node_list[x[(ind+1) % len(x)]])
-                                      )
+                    self.lines.append(
+                        self.canvas.create_line(
+                            *self.node_list[x[ind]],
+                            *self.node_list[x[(ind+1) % len(x)]],
+                            fill="black"
+                        )
+                    )
             except Exception:
                 break
 
-        print("ПОТОК ОТРАБОТАЛ")
-
-
-def get_solution(temp_len, p0, outer_limit, d, input_pipe):
-    solution.Solution(temp_len, p0, outer_limit, d, input_pipe=input_pipe)
-
-
-if __name__ == "__main__":
-    window = Interface()
-    window.mainloop()
+    @staticmethod
+    def get_solution(temp_len, p0, outer_limit, d, input_pipe):
+        solver.TSPSolver(temp_len, p0, outer_limit, d, input_pipe=input_pipe).run()
